@@ -1,11 +1,14 @@
 package ws
 
 import (
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 )
+
+var clients = make(map[*websocket.Conn]bool)
 
 // Настройка апгрейдера WebSocket
 var upgrader = websocket.Upgrader{
@@ -15,6 +18,11 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
+}
+
+type Message struct {
+	Type    string `json:"type"`
+	Content string `json:"content"`
 }
 
 func (r *Routes) WebsocketHandler(c *gin.Context) {
@@ -30,7 +38,12 @@ func (r *Routes) WebsocketHandler(c *gin.Context) {
 }
 
 func messagesHandler(conn *websocket.Conn) {
-	// Обработка сообщений
+	clients[conn] = true
+	defer func() {
+		delete(clients, conn)
+		conn.Close()
+	}()
+
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
@@ -38,13 +51,31 @@ func messagesHandler(conn *websocket.Conn) {
 			break
 		}
 
-		log.Printf("Получено сообщение: %s\n", message)
+		// Парсим JSON в структуру
+		var msg Message
+		if err := json.Unmarshal(message, &msg); err != nil {
+			log.Println("Invalid JSON:", err)
+			continue
+		}
 
-		// Отправка обратно (эхо)
-		err = conn.WriteMessage(messageType, message)
-		if err != nil {
-			log.Println("Ошибка отправки сообщения:", err)
-			break
+		log.Printf("Получено сообщение: %s\n", msg)
+		response := Message{
+			Type:    "icoming",
+			Content: msg.Content,
+		}
+
+		jsonMessage, err := json.Marshal(response)
+
+		// Рассылка всем подключенным клиентам
+		for client := range clients {
+			if client != conn { // Не отправлять самому себе
+				err := client.WriteMessage(messageType, jsonMessage)
+				if err != nil {
+					log.Println("Ошибка отправки сообщения:", err)
+					client.Close()
+					delete(clients, client)
+				}
+			}
 		}
 	}
 }
