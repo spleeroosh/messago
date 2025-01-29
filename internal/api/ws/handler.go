@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-var clients = make(map[*websocket.Conn]bool)
+var clients = make(map[*websocket.Conn]string)
 
 // Настройка апгрейдера WebSocket
 var upgrader = websocket.Upgrader{
@@ -22,6 +22,7 @@ var upgrader = websocket.Upgrader{
 
 type Message struct {
 	Type    string `json:"type"`
+	Sender  string `json:"sender"`
 	Content string `json:"content"`
 }
 
@@ -38,7 +39,8 @@ func (r *Routes) WebsocketHandler(c *gin.Context) {
 }
 
 func messagesHandler(conn *websocket.Conn) {
-	clients[conn] = true
+	clients[conn] = generateNickname()
+
 	defer func() {
 		delete(clients, conn)
 		conn.Close()
@@ -62,6 +64,7 @@ func messagesHandler(conn *websocket.Conn) {
 		response := Message{
 			Type:    "icoming",
 			Content: msg.Content,
+			Sender:  clients[conn],
 		}
 
 		jsonMessage, err := json.Marshal(response)
