@@ -7,6 +7,8 @@ import (
 	"github.com/spleeroosh/messago/internal/config"
 	routerfx "github.com/spleeroosh/messago/internal/infrastructure/http/routerfx"
 	serverfx "github.com/spleeroosh/messago/internal/infrastructure/http/serverfx"
+	"github.com/spleeroosh/messago/internal/repository/messages"
+	usemessages "github.com/spleeroosh/messago/internal/usecases/messages"
 	"go.uber.org/fx"
 )
 
@@ -18,6 +20,8 @@ func NewApp() *fx.App {
 }
 
 var providers = []any{
+	fx.Annotate(usemessages.NewService, fx.As(new(wsapi.Messages))),
+	fx.Annotate(messages.NewRepository, fx.As(new(usemessages.Repository))),
 	config.GetConfig,
 	newHTTPRouter,
 	newHTTPServer,

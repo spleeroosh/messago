@@ -7,14 +7,18 @@ import (
 )
 
 type Routes struct {
+	messages Messages
 }
 
-func NewRoutes(conf config.Config) *Routes {
-	return &Routes{}
+func NewRoutes(conf config.Config, messages Messages) *Routes {
+	return &Routes{
+		messages: messages,
+	}
 }
 
 func (r *Routes) Apply(e *gin.Engine) {
 	g := e.Group("/ws")
 	g.GET("/chat", r.WebsocketHandler)
+	g.GET("/messages", r.GetMessagesHandler)
 	fmt.Println("routers are registered")
 }

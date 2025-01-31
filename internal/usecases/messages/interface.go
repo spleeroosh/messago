@@ -1,4 +1,4 @@
-package ws
+package messages
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 )
 
 //go:generate go run go.uber.org/mock/mockgen -source=interface.go -destination=repository_mock_test.go -package=dictionary DictionaryRepository
-type Messages interface {
+type Repository interface {
 	GetAllMessages(ctx context.Context) ([]entity.Message, error)
 	SaveMessage(ctx context.Context, msg valueobject.Message) error
 }

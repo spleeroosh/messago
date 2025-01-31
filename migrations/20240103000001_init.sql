@@ -3,10 +3,10 @@
 CREATE TABLE messages
 (
     id         BIGSERIAL PRIMARY KEY,
+    type       TEXT        NOT NULL,
     content    TEXT        NOT NULL,
     sender     TEXT        NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+    created_at TIMESTAMPTZ NOT NULL
 );
 -- +goose StatementEnd
 

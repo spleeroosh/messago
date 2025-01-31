@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/spleeroosh/messago/internal/valueobject"
 	"log"
 	"net/http"
 )
@@ -20,10 +21,14 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type Message struct {
-	Type    string `json:"type"`
-	Sender  string `json:"sender"`
-	Content string `json:"content"`
+func (r *Routes) GetMessagesHandler(c *gin.Context) {
+	messages, err := r.messages.GetAllMessages(c)
+	if err != nil {
+		log.Println("Ошибка получения сообщений", err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": messages})
 }
 
 func (r *Routes) WebsocketHandler(c *gin.Context) {
@@ -35,10 +40,10 @@ func (r *Routes) WebsocketHandler(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	messagesHandler(conn)
+	r.messagesHandler(c, conn)
 }
 
-func messagesHandler(conn *websocket.Conn) {
+func (r *Routes) messagesHandler(c *gin.Context, conn *websocket.Conn) {
 	clients[conn] = generateNickname()
 
 	defer func() {
@@ -54,17 +59,22 @@ func messagesHandler(conn *websocket.Conn) {
 		}
 
 		// Парсим JSON в структуру
-		var msg Message
+		var msg valueobject.Message
 		if err := json.Unmarshal(message, &msg); err != nil {
 			log.Println("Invalid JSON:", err)
 			continue
 		}
 
 		log.Printf("Получено сообщение: %s\n", msg)
-		response := Message{
+		response := valueobject.Message{
 			Type:    "icoming",
 			Content: msg.Content,
 			Sender:  clients[conn],
+		}
+
+		err = r.messages.SaveMessage(c, response)
+		if err != nil {
+			log.Println("Save message in postgres error:", err)
 		}
 
 		jsonMessage, err := json.Marshal(response)

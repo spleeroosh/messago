@@ -7,9 +7,7 @@ import "time"
 //easyjson:json
 type Message struct {
 	ID        int       `json:"id"`
-	Type      string    `json:"type"`    // тип словаря (страны, должности и т.п.)
-	Sender    string    `json:"sender"`  // значение элемента 	// язык ('ru', 'en')
-	Content   string    `json:"content"` // название элемента
+	Sender    string    `json:"sender"`
+	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 }
