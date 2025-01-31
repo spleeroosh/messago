@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spleeroosh/messago/internal/config"
 	"github.com/spleeroosh/messago/internal/infrastructure/http/application"
@@ -13,7 +14,7 @@ import (
 func newHTTPServer(lc fx.Lifecycle, sh fx.Shutdowner, engine *gin.Engine, conf config.Config, router *routerfx.AppRoute) *serverfx.ServerFX {
 	// Установите режим Gin (например, ReleaseMode или DebugMode)
 	gin.SetMode(gin.ReleaseMode)
-
+	fmt.Println("HTTP SERVER START")
 	// Настройка роутера
 	router.SetupRouter(engine)
 
@@ -25,6 +26,6 @@ func newHTTPServer(lc fx.Lifecycle, sh fx.Shutdowner, engine *gin.Engine, conf c
 	)
 
 	lc.Append(application.ServerHooks(sh, srv))
-
+	fmt.Println("HTTP SERVER END")
 	return srv
 }

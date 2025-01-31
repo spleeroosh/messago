@@ -1,11 +1,10 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE users
+CREATE TABLE messages
 (
     id         BIGSERIAL PRIMARY KEY,
-    name       TEXT        NOT NULL,
-    age        INT         NOT NULL,
-    social     TEXT        NOT NULL,
+    content    TEXT        NOT NULL,
+    sender     TEXT        NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
@@ -13,5 +12,5 @@ CREATE TABLE users
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS messages;
 -- +goose StatementEnd

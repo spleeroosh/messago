@@ -28,8 +28,10 @@ func NewMigrator(db *sql.DB, fs embed.FS) Migrator {
 
 func (m Migrator) Up() error {
 	// Ensure database is available before proceeding with migrations
+	fmt.Println("KEK")
 	err := m.ping(m.db)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
@@ -43,7 +45,7 @@ func (m Migrator) Up() error {
 		return fmt.Errorf("new provider: %w", err)
 	}
 
-	//m.logger.Info().Msg("starting migration...")
+	fmt.Println("starting migration...")
 
 	// Perform migrations up
 	if _, err := prov.Up(context.Background()); err != nil {
@@ -51,11 +53,11 @@ func (m Migrator) Up() error {
 			//m.logger.Info().Msg("no migrations to apply")
 			return nil
 		}
-		//m.logger.Err(err).Msg("migration failed")
+		fmt.Println("migration failed")
 		return fmt.Errorf("migration error: %w", err)
 	}
 
-	//m.logger.Info().Msg("migration succeeded")
+	fmt.Println("migration succeeded")
 	return nil
 }
 
@@ -66,7 +68,7 @@ func (m Migrator) ping(stdDB *sql.DB) error {
 	expBackoff.MaxElapsedTime = 5 * time.Minute
 	if err := backoff.Retry(func() error {
 		if err := stdDB.Ping(); err != nil {
-			//m.logger.Warn().Err(err).Msg("database connection issue, retrying...")
+			fmt.Println("ping:", err)
 			return err
 		}
 		return nil

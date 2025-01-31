@@ -16,8 +16,8 @@ import (
 )
 
 func newPostgresClient(lc fx.Lifecycle, conf config.Config) (*pgxpool.Pool, error) {
+	fmt.Printf("POSTGRE START %v\n", conf)
 	goqu.SetDefaultPrepared(true)
-
 	connString := strings.Join([]string{
 		fmt.Sprintf("user=%s", conf.Postgres.User),
 		fmt.Sprintf("password=%s", conf.Postgres.Password),
@@ -33,21 +33,25 @@ func newPostgresClient(lc fx.Lifecycle, conf config.Config) (*pgxpool.Pool, erro
 
 	pool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
+		fmt.Println(err)
 		return nil, fmt.Errorf("create pgxpool: %w", err)
 	}
-
+	fmt.Println("POOL CREATED")
 	lc.Append(fx.StopHook(func() {
 		pool.Close()
 	}))
-
-	//err = migrate(pool)
-	//if err != nil {
-	//	return nil, err
-	//}
+	fmt.Println("POOL PRE MIGRATE")
+	err = migrate(pool)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	fmt.Println("POOL MIGRATEd")
 
 	return pool, nil
 }
 
 func migrate(pool *pgxpool.Pool) error {
+	fmt.Println("MIGRATES ARE STARTED")
 	return migrator.NewMigrator(stdlib.OpenDBFromPool(pool), migrations.FS).Up()
 }

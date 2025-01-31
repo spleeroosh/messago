@@ -1,6 +1,8 @@
 package bootstrap
 
 import (
+	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
 	wsapi "github.com/spleeroosh/messago/internal/api/ws"
 	"github.com/spleeroosh/messago/internal/config"
 	routerfx "github.com/spleeroosh/messago/internal/infrastructure/http/routerfx"
@@ -11,7 +13,7 @@ import (
 func NewApp() *fx.App {
 	return fx.New(
 		fx.Provide(providers...),
-		fx.Invoke(func(*serverfx.ServerFX) {}),
+		fx.Invoke(registerHooks),
 	)
 }
 
@@ -24,4 +26,8 @@ var providers = []any{
 	fx.Annotate(wsapi.NewRoutes, fx.As(new(routerfx.Provider)), fx.ResultTags(`group:"providers"`)),
 	// Коллектор роутов
 	fx.Annotate(routerfx.NewRouter, fx.ParamTags(`group:"providers"`)),
+}
+
+func registerHooks(pool *pgxpool.Pool, server *serverfx.ServerFX) {
+	fmt.Println("Postgres pool successfully initialized")
 }

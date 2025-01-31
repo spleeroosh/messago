@@ -7,8 +7,8 @@ import (
 type Postgres struct {
 	Host            string        `envconfig:"POSTGRES_HOST" default:"localhost"`
 	Port            int           `envconfig:"POSTGRES_PORT" default:"5432"`
-	User            string        `envconfig:"POSTGRES_USER" default:"root"`
-	Password        string        `envconfig:"POSTGRES_PASSWORD" default:"root"`
+	User            string        `envconfig:"POSTGRES_USER" default:"admin"`
+	Password        string        `envconfig:"POSTGRES_PASSWORD" default:"password"`
 	Database        string        `envconfig:"POSTGRES_DATABASE" default:"messago-db"`
 	SSLMode         string        `envconfig:"POSTGRES_SSLMODE" default:"verify-full"`
 	ConnTimeout     int           `envconfig:"POSTGRES_CONNTIMEOUT" default:"5"`
