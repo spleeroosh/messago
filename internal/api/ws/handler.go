@@ -24,7 +24,7 @@ var upgrader = websocket.Upgrader{
 func (r *Routes) GetMessagesHandler(c *gin.Context) {
 	messages, err := r.messages.GetAllMessages(c)
 	if err != nil {
-		log.Println("Error retrieving messages:", err)
+		r.logger.Err(err).Msgf("Error retrieving messages: %v", err)
 		return
 	}
 
@@ -35,11 +35,12 @@ func (r *Routes) WebsocketHandler(c *gin.Context) {
 	// Upgrade the connection to WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Println("Error upgrading to WebSocket:", err)
+		r.logger.Err(err).Msgf("Error upgrading to WebSocket: %v", err)
 		return
 	}
 	defer conn.Close()
 
+	r.logger.Info().Msg("WS connection is upgraded")
 	r.sendLastMessages(c, conn)
 	r.messagesHandler(c, conn)
 }
@@ -55,14 +56,14 @@ func (r *Routes) messagesHandler(c *gin.Context, conn *websocket.Conn) {
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Error reading message:", err)
+			r.logger.Err(err).Msgf("Error reading message: %v", err)
 			break
 		}
 
 		// Parse JSON into the message structure
 		var msg valueobject.Message
 		if err := json.Unmarshal(message, &msg); err != nil {
-			log.Println("Invalid JSON:", err)
+			r.logger.Err(err).Msgf("Invalid JSON: %v", err)
 			continue
 		}
 
@@ -75,13 +76,13 @@ func (r *Routes) messagesHandler(c *gin.Context, conn *websocket.Conn) {
 
 		err = r.messages.SaveMessage(c, response)
 		if err != nil {
-			log.Println("Error saving message in PostgreSQL:", err)
+			r.logger.Err(err).Msgf("Error saving message in PostgreSQL: %v", err)
 		}
 
 		jsonMessage, err := json.Marshal(response)
 
 		// Broadcast the message to all connected clients
-		broadcastMessage(clients, conn, messageType, jsonMessage)
+		r.broadcastMessage(clients, conn, messageType, jsonMessage)
 	}
 }
 
@@ -89,7 +90,7 @@ func (r *Routes) sendLastMessages(c *gin.Context, conn *websocket.Conn) {
 	// Retrieve the last 10 messages from the repository
 	messages, err := r.messages.GetLatestMessages(c, 10)
 	if err != nil {
-		log.Println("Error retrieving last messages:", err)
+		r.logger.Err(err).Msgf("Error retrieving last messages: %v", err)
 		return
 	}
 
@@ -97,21 +98,21 @@ func (r *Routes) sendLastMessages(c *gin.Context, conn *websocket.Conn) {
 	for _, message := range messages {
 		jsonMessage, err := json.Marshal(message)
 		if err != nil {
-			log.Println("Error serializing message:", err)
+			r.logger.Err(err).Msgf("Error serializing message: %v", err)
 			continue
 		}
 		if err := conn.WriteMessage(websocket.TextMessage, jsonMessage); err != nil {
-			log.Println("Error sending message:", err)
+			r.logger.Err(err).Msgf("Error sending message: %v", err)
 			return
 		}
 	}
 }
 
-func broadcastMessage(clients map[*websocket.Conn]string, sender *websocket.Conn, messageType int, jsonMessage []byte) {
+func (r *Routes) broadcastMessage(clients map[*websocket.Conn]string, sender *websocket.Conn, messageType int, jsonMessage []byte) {
 	for client := range clients {
 		if client != sender {
 			if err := client.WriteMessage(messageType, jsonMessage); err != nil {
-				log.Printf("Error sending message to client: %v", err)
+				r.logger.Err(err).Msgf("Error sending message to client: %v", err)
 				client.Close()
 				delete(clients, client)
 			}

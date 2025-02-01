@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spleeroosh/messago/internal/config"
+	"github.com/spleeroosh/messago/internal/infrastructure/logger"
 )
 
 type Routes struct {
+	logger   logger.Logger
 	messages Messages
 }
 
-func NewRoutes(conf config.Config, messages Messages) *Routes {
+func NewRoutes(conf config.Config, logger logger.Logger, messages Messages) *Routes {
 	return &Routes{
+		logger:   logger,
 		messages: messages,
 	}
 }
