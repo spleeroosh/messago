@@ -11,11 +11,11 @@ import (
 
 var clients = make(map[*websocket.Conn]string)
 
-// Настройка апгрейдера WebSocket
+// WebSocket upgrader configuration
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	// Добавьте обработку CORS (по умолчанию запросы от других источников блокируются)
+	// Allow cross-origin requests
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
@@ -24,7 +24,7 @@ var upgrader = websocket.Upgrader{
 func (r *Routes) GetMessagesHandler(c *gin.Context) {
 	messages, err := r.messages.GetAllMessages(c)
 	if err != nil {
-		log.Println("Ошибка получения сообщений", err)
+		log.Println("Error retrieving messages:", err)
 		return
 	}
 
@@ -32,14 +32,15 @@ func (r *Routes) GetMessagesHandler(c *gin.Context) {
 }
 
 func (r *Routes) WebsocketHandler(c *gin.Context) {
-	// Обновляем соединение до WebSocket
+	// Upgrade the connection to WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Println("Ошибка при апгрейде до WebSocket:", err)
+		log.Println("Error upgrading to WebSocket:", err)
 		return
 	}
 	defer conn.Close()
 
+	r.sendLastMessages(c, conn)
 	r.messagesHandler(c, conn)
 }
 
@@ -54,40 +55,65 @@ func (r *Routes) messagesHandler(c *gin.Context, conn *websocket.Conn) {
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Ошибка чтения сообщения:", err)
+			log.Println("Error reading message:", err)
 			break
 		}
 
-		// Парсим JSON в структуру
+		// Parse JSON into the message structure
 		var msg valueobject.Message
 		if err := json.Unmarshal(message, &msg); err != nil {
 			log.Println("Invalid JSON:", err)
 			continue
 		}
 
-		log.Printf("Получено сообщение: %s\n", msg)
+		log.Printf("Received message: %s\n", msg)
 		response := valueobject.Message{
-			Type:    "icoming",
+			Type:    "incoming",
 			Content: msg.Content,
 			Sender:  clients[conn],
 		}
 
 		err = r.messages.SaveMessage(c, response)
 		if err != nil {
-			log.Println("Save message in postgres error:", err)
+			log.Println("Error saving message in PostgreSQL:", err)
 		}
 
 		jsonMessage, err := json.Marshal(response)
 
-		// Рассылка всем подключенным клиентам
-		for client := range clients {
-			if client != conn { // Не отправлять самому себе
-				err := client.WriteMessage(messageType, jsonMessage)
-				if err != nil {
-					log.Println("Ошибка отправки сообщения:", err)
-					client.Close()
-					delete(clients, client)
-				}
+		// Broadcast the message to all connected clients
+		broadcastMessage(clients, conn, messageType, jsonMessage)
+	}
+}
+
+func (r *Routes) sendLastMessages(c *gin.Context, conn *websocket.Conn) {
+	// Retrieve the last 10 messages from the repository
+	messages, err := r.messages.GetLatestMessages(c, 10)
+	if err != nil {
+		log.Println("Error retrieving last messages:", err)
+		return
+	}
+
+	// Send the last messages to the newly connected client
+	for _, message := range messages {
+		jsonMessage, err := json.Marshal(message)
+		if err != nil {
+			log.Println("Error serializing message:", err)
+			continue
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, jsonMessage); err != nil {
+			log.Println("Error sending message:", err)
+			return
+		}
+	}
+}
+
+func broadcastMessage(clients map[*websocket.Conn]string, sender *websocket.Conn, messageType int, jsonMessage []byte) {
+	for client := range clients {
+		if client != sender {
+			if err := client.WriteMessage(messageType, jsonMessage); err != nil {
+				log.Printf("Error sending message to client: %v", err)
+				client.Close()
+				delete(clients, client)
 			}
 		}
 	}

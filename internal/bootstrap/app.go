@@ -5,6 +5,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	wsapi "github.com/spleeroosh/messago/internal/api/ws"
 	"github.com/spleeroosh/messago/internal/config"
+	"github.com/spleeroosh/messago/internal/infrastructure/http/application"
 	routerfx "github.com/spleeroosh/messago/internal/infrastructure/http/routerfx"
 	serverfx "github.com/spleeroosh/messago/internal/infrastructure/http/serverfx"
 	"github.com/spleeroosh/messago/internal/repository/messages"
@@ -22,8 +23,10 @@ func NewApp() *fx.App {
 var providers = []any{
 	fx.Annotate(usemessages.NewService, fx.As(new(wsapi.Messages))),
 	fx.Annotate(messages.NewRepository, fx.As(new(usemessages.Repository))),
-	config.GetConfig,
 	newHTTPRouter,
+	config.GetConfig,
+	application.GetBuildVersion,
+	newLogger,
 	newHTTPServer,
 	newPostgresClient,
 	// Регистрация роутов

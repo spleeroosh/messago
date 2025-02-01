@@ -33,6 +33,18 @@ func (s *Service) GetAllMessages(ctx context.Context) ([]entity.Message, error) 
 	return items, nil
 }
 
+func (s *Service) GetLatestMessages(ctx context.Context, limit int) ([]entity.Message, error) {
+	ctx, span := s.tracer.Start(ctx, "MessagesService:GetLatestMessages()")
+	defer span.End()
+
+	items, err := s.repo.GetLatestMessages(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get last messages: %w", err) // Возвращаем nil в случае ошибки
+	}
+
+	return items, nil
+}
+
 func (s *Service) SaveMessage(ctx context.Context, msg valueobject.Message) error {
 	ctx, span := s.tracer.Start(ctx, "MessagesService:SaveMessage()")
 	defer span.End()

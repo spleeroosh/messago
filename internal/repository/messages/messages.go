@@ -62,6 +62,43 @@ func (r *Repository) GetAllMessages(ctx context.Context) ([]entity.Message, erro
 	return items, nil
 }
 
+func (r *Repository) GetLatestMessages(ctx context.Context, limit int) ([]entity.Message, error) {
+	ctx, span := r.tracer.Start(ctx, "Repository.GetLatestMessages()")
+	defer span.End()
+
+	sql, args, err := r.builder.
+		Select("messages.id", "messages.sender", "messages.content", "messages.created_at").
+		From("messages").
+		Order(goqu.I("messages.created_at").Desc()).
+		Limit(uint(limit)).
+		ToSQL()
+
+	if err != nil {
+		return nil, fmt.Errorf("build sql: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query rows: %w", err)
+	}
+	defer rows.Close()
+
+	var items []entity.Message
+	for rows.Next() {
+		var item entity.Message
+		if err := rows.Scan(&item.ID, &item.Sender, &item.Content, &item.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan row: %w", err)
+		}
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return items, nil
+}
+
 func (r *Repository) SaveMessage(ctx context.Context, msg valueobject.Message) error {
 	ctx, span := r.tracer.Start(ctx, "Repository.SaveMessage()")
 	defer span.End()
