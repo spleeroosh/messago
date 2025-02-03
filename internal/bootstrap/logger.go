@@ -2,9 +2,8 @@ package bootstrap
 
 import (
 	"github.com/spleeroosh/messago/internal/config"
-
-	"github.com/spleeroosh/messago/internal/infrastructure/http/application"
-	"github.com/spleeroosh/messago/internal/infrastructure/logger"
+	"github.com/spleeroosh/messago/internal/pkg/application"
+	"github.com/spleeroosh/messago/internal/pkg/logger"
 )
 
 func newLogger(conf config.Config, buildVersion application.BuildVersion) logger.Logger {

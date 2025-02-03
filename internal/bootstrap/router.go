@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spleeroosh/messago/internal/config"
-	"github.com/spleeroosh/messago/internal/infrastructure/http/routerfx"
+	"github.com/spleeroosh/messago/internal/pkg/routerfx"
 )
 
 func newHTTPRouter(conf config.Config) *gin.Engine {
