@@ -20,6 +20,8 @@ type WebsocketService interface {
 	// HandleConnection handles the client connection and message management.
 	HandleConnection(ctx context.Context, conn *websocket.Conn) error
 
+	ReadMessages(conn *websocket.Conn)
+
 	// HandleIncomingMessage processes the incoming message from the client.
 	HandleIncomingMessage(ctx context.Context, conn *websocket.Conn, rawMessage []byte, nickname string) error
 
@@ -30,5 +32,5 @@ type WebsocketService interface {
 	SendLastMessages(ctx context.Context, conn *websocket.Conn) error
 
 	// BroadcastMessage broadcasts a message to all clients.
-	BroadcastMessage(sender *websocket.Conn, messageType int, jsonMessage []byte) error
+	BroadcastMessages()
 }

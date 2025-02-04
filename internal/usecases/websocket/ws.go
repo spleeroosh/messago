@@ -12,17 +12,26 @@ import (
 	"github.com/spleeroosh/messago/internal/valueobject"
 )
 
+type Message struct {
+	Client *websocket.Conn
+	Data   []byte
+}
+
 type Service struct {
-	logger         logger.Logger
-	messageService messagesService.Repository
-	clients        map[*websocket.Conn]string
+	logger          logger.Logger
+	messageService  messagesService.Repository
+	clients         map[*websocket.Conn]string
+	incomingChannel chan Message
+	outgoingChannel chan Message
 }
 
 func NewService(messageService messagesService.Repository, logger logger.Logger) *Service {
 	return &Service{
-		logger:         logger,
-		messageService: messageService,
-		clients:        make(map[*websocket.Conn]string),
+		logger:          logger,
+		messageService:  messageService,
+		clients:         make(map[*websocket.Conn]string),
+		incomingChannel: make(chan Message),
+		outgoingChannel: make(chan Message),
 	}
 }
 
@@ -40,22 +49,32 @@ func (s *Service) HandleConnection(ctx context.Context, conn *websocket.Conn) er
 		return fmt.Errorf("failed to send last messages: %w", err)
 	}
 
+	// Запуск горутин для обработки сообщений
+	go s.ReadMessages(conn)
+	go s.BroadcastMessages()
+
+	// Обработка новых сообщений через канал
+	for msg := range s.incomingChannel {
+		s.HandleIncomingMessage(ctx, msg.Client, msg.Data, nickname)
+	}
+
+	return nil
+}
+
+func (s *Service) ReadMessages(conn *websocket.Conn) {
 	for {
-		messageType, rawMessage, err := conn.ReadMessage()
+		_, rawMessage, err := conn.ReadMessage()
 		if err != nil {
-			s.logger.Err(err).Msg("failed to read message")
-			return fmt.Errorf("error reading message: %w", err)
+			s.logger.Err(err).Msg("Ошибка чтения сообщения")
+			delete(s.clients, conn)
+			return
 		}
 
-		if err := s.HandleIncomingMessage(ctx, conn, rawMessage, nickname); err != nil {
-			s.logger.Err(err).Msg("failed to handle incoming message")
-			return fmt.Errorf("handle message error: %w", err)
-		}
+		// Отправляем сообщение в канал
+		s.incomingChannel <- Message{Client: conn, Data: rawMessage}
 
-		if err := s.BroadcastMessage(conn, messageType, rawMessage); err != nil {
-			s.logger.Err(err).Msgf("broadcast message error: %v", err)
-			return fmt.Errorf("broadcast message error: %w", err)
-		}
+		// Также пишем сообщение для других клиентов через исходящий канал
+		s.outgoingChannel <- Message{Client: conn, Data: rawMessage}
 	}
 }
 
@@ -112,15 +131,17 @@ func (s *Service) SendLastMessages(ctx context.Context, conn *websocket.Conn) er
 	return nil
 }
 
-func (s *Service) BroadcastMessage(sender *websocket.Conn, messageType int, jsonMessage []byte) error {
-	for client := range s.clients {
-		if client != sender {
-			if err := client.WriteMessage(messageType, jsonMessage); err != nil {
-				s.logger.Err(err).Msg("failed to send message")
-				client.Close()
-				delete(s.clients, client)
+func (s *Service) BroadcastMessages() {
+	for msg := range s.outgoingChannel {
+		for client := range s.clients {
+			if client != msg.Client {
+				err := client.WriteMessage(websocket.TextMessage, msg.Data)
+				if err != nil {
+					s.logger.Err(err).Msg("Ошибка отправки сообщения клиенту")
+					client.Close()
+					delete(s.clients, client)
+				}
 			}
 		}
 	}
-	return nil
 }
