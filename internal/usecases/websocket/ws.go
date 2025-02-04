@@ -72,9 +72,6 @@ func (s *Service) ReadMessages(conn *websocket.Conn) {
 
 		// Отправляем сообщение в канал
 		s.incomingChannel <- Message{Client: conn, Data: rawMessage}
-
-		// Также пишем сообщение для других клиентов через исходящий канал
-		s.outgoingChannel <- Message{Client: conn, Data: rawMessage}
 	}
 }
 
@@ -88,6 +85,7 @@ func (s *Service) HandleIncomingMessage(ctx context.Context, conn *websocket.Con
 	message := valueobject.Message{
 		Content: msg.Content,
 		Sender:  nickname,
+		Type:    "incoming",
 	}
 	s.logger.Info().Msgf("received message %v", message)
 
@@ -97,10 +95,9 @@ func (s *Service) HandleIncomingMessage(ctx context.Context, conn *websocket.Con
 	}
 
 	response, _ := json.Marshal(message)
-	if err := conn.WriteMessage(websocket.TextMessage, response); err != nil {
-		s.logger.Error().Msgf("failed to send response: %v", err)
-		return fmt.Errorf("send confirmation failed: %w", err)
-	}
+
+	// Также пишем сообщение для других клиентов через исходящий канал
+	s.outgoingChannel <- Message{Client: conn, Data: response}
 
 	return nil
 }
